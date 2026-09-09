@@ -3,7 +3,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 // 建链配置:调用方注入环境相关的两块粘合,库内只剩 socket 与调度。
-@interface TLConfig : NSObject
+@interface MDPConfig : NSObject
 
 @property (nonatomic, assign) int basePort;   // 起始端口对,<=0 则取 17001
 @property (nonatomic, copy, nullable) NSString *lanIp;   // 无线直连地址,nil=只用有线
@@ -24,11 +24,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@interface TLDual : NSObject
+@interface MDPDual : NSObject
 
 // 建链:control start → ensureForward → 有线/无线逐条握手(echo+代号) → 定初始权重。
 // 零可用链路返回 nil(调用方走备用通道)。
-+ (nullable instancetype)buildWithConfig:(TLConfig *)cfg
++ (nullable instancetype)buildWithConfig:(MDPConfig *)cfg
                                   error:(NSString * _Nullable * _Nullable)err;
 
 // 槽位登记(spec 透传给 control @"slot";同实例内按 cacheKey 缓存,跨实例需重登)

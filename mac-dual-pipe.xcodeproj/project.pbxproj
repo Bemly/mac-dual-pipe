@@ -7,19 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000000000000000000001 /* TLLink.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* TLLink.m */; };
-		A10000000000000000000002 /* TLDual.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* TLDual.m */; };
+		A10000000000000000000001 /* MDPLink.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* MDPLink.m */; };
+		A10000000000000000000002 /* MDPDual.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* MDPDual.m */; };
 		A10000000000000000000003 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A20000000000000000000001 /* TwinLink.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TwinLink.h; sourceTree = "<group>"; };
-		A20000000000000000000002 /* TLLink.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TLLink.h; sourceTree = "<group>"; };
-		A20000000000000000000003 /* TLLink.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TLLink.m; sourceTree = "<group>"; };
-		A20000000000000000000004 /* TLDual.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TLDual.h; sourceTree = "<group>"; };
-		A20000000000000000000005 /* TLDual.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TLDual.m; sourceTree = "<group>"; };
+		A20000000000000000000001 /* mac-dual-pipe.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mac-dual-pipe.h; sourceTree = "<group>"; };
+		A20000000000000000000002 /* MDPLink.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MDPLink.h; sourceTree = "<group>"; };
+		A20000000000000000000003 /* MDPLink.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MDPLink.m; sourceTree = "<group>"; };
+		A20000000000000000000004 /* MDPDual.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MDPDual.h; sourceTree = "<group>"; };
+		A20000000000000000000005 /* MDPDual.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MDPDual.m; sourceTree = "<group>"; };
 		A20000000000000000000006 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
-		A20000000000000000000007 /* libTwinLink.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libTwinLink.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000007 /* libmac-dual-pipe.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libmac-dual-pipe.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,11 +45,11 @@
 		A40000000000000000000002 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				A20000000000000000000001 /* TwinLink.h */,
-				A20000000000000000000002 /* TLLink.h */,
-				A20000000000000000000003 /* TLLink.m */,
-				A20000000000000000000004 /* TLDual.h */,
-				A20000000000000000000005 /* TLDual.m */,
+				A20000000000000000000001 /* mac-dual-pipe.h */,
+				A20000000000000000000002 /* MDPLink.h */,
+				A20000000000000000000003 /* MDPLink.m */,
+				A20000000000000000000004 /* MDPDual.h */,
+				A20000000000000000000005 /* MDPDual.m */,
 			);
 			path = src;
 			sourceTree = "<group>";
@@ -57,7 +57,7 @@
 		A40000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A20000000000000000000007 /* libTwinLink.a */,
+				A20000000000000000000007 /* libmac-dual-pipe.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -65,9 +65,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A50000000000000000000001 /* TwinLink */ = {
+		A50000000000000000000001 /* mac-dual-pipe */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A60000000000000000000003 /* Build configuration list for PBXNativeTarget "TwinLink" */;
+			buildConfigurationList = A60000000000000000000003 /* Build configuration list for PBXNativeTarget "mac-dual-pipe" */;
 			buildPhases = (
 				A30000000000000000000002 /* Sources */,
 				A30000000000000000000001 /* Frameworks */,
@@ -76,9 +76,9 @@
 			);
 			dependencies = (
 			);
-			name = TwinLink;
-			productName = TwinLink;
-			productReference = A20000000000000000000007 /* libTwinLink.a */;
+			name = mac-dual-pipe;
+			productName = mac-dual-pipe;
+			productReference = A20000000000000000000007 /* libmac-dual-pipe.a */;
 			productType = "com.apple.product-type.library.static";
 		};
 /* End PBXNativeTarget section */
@@ -90,7 +90,7 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastUpgradeCheck = 2600;
 			};
-			buildConfigurationList = A60000000000000000000001 /* Build configuration list for PBXProject "TwinLink" */;
+			buildConfigurationList = A60000000000000000000001 /* Build configuration list for PBXProject "mac-dual-pipe" */;
 			compatibilityVersion = "Xcode 26.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -102,7 +102,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A50000000000000000000001 /* TwinLink */,
+				A50000000000000000000001 /* mac-dual-pipe */,
 			);
 		};
 /* End PBXProject section */
@@ -112,8 +112,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000001 /* TLLink.m in Sources */,
-				A10000000000000000000002 /* TLDual.m in Sources */,
+				A10000000000000000000001 /* MDPLink.m in Sources */,
+				A10000000000000000000002 /* MDPDual.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -156,7 +156,7 @@
 					"DEBUG=1",
 					"$(inherited)",
 				);
-				PRODUCT_NAME = TwinLink;
+				PRODUCT_NAME = mac-dual-pipe;
 				SKIP_INSTALL = YES;
 			};
 			name = Debug;
@@ -165,7 +165,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				EXECUTABLE_PREFIX = lib;
-				PRODUCT_NAME = TwinLink;
+				PRODUCT_NAME = mac-dual-pipe;
 				SKIP_INSTALL = YES;
 			};
 			name = Release;
@@ -173,7 +173,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A60000000000000000000001 /* Build configuration list for PBXProject "TwinLink" */ = {
+		A60000000000000000000001 /* Build configuration list for PBXProject "mac-dual-pipe" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A60000000000000000000004 /* Debug */,
@@ -182,7 +182,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A60000000000000000000003 /* Build configuration list for PBXNativeTarget "TwinLink" */ = {
+		A60000000000000000000003 /* Build configuration list for PBXNativeTarget "mac-dual-pipe" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A60000000000000000000006 /* Debug */,

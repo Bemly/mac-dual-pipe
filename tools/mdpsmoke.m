@@ -1,12 +1,12 @@
-// tlsmoke.m — TwinLink 独立回环自测（无需手机/控制通道，纯本机验证传输层）：
+// mdpsmoke.m — mac-dual-pipe 独立回环自测（无需手机/控制通道，纯本机验证传输层）：
 //
 //   原理：进程内起两个桩服务（实现 E/V/M/Q 分帧；M 的变换=逐字节反转），
-//   用假 control/ensureForward 喂给 TLDual，逐项断言。
+//   用假 control/ensureForward 喂给 MDPDual，逐项断言。
 // 编译（仓库根目录）：
-//   clang -arch arm64 -fobjc-arc -framework Foundation tools/tlsmoke.m \
-//     build/Release/libTwinLink.a -I src -o /tmp/tlsmoke && /tmp/tlsmoke
+//   clang -arch arm64 -fobjc-arc -framework Foundation tools/mdpsmoke.m \
+//     build/Release/libmac-dual-pipe.a -I src -o /tmp/mdpsmoke && /tmp/mdpsmoke
 #import <Foundation/Foundation.h>
-#import "TwinLink.h"
+#import "mac-dual-pipe.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
         }
         printf("桩端口: %d/%d\n", gStubPort[0], gStubPort[1]);
 
-        TLConfig *cfg = [TLConfig new];
+        MDPConfig *cfg = [MDPConfig new];
         cfg.basePort = 17001;
         cfg.lanIp = @"127.0.0.1";
         cfg.expectedGen = @"T9";
@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
         cfg.log = ^(NSString *l) { printf("  %s\n", l.UTF8String); };
 
         NSString *e = nil;
-        TLDual *dual = [TLDual buildWithConfig:cfg error:&e];
+        MDPDual *dual = [MDPDual buildWithConfig:cfg error:&e];
         Check(dual != nil && dual.linkTotal == 2, "建链双链");
         if (!dual) { printf("建链失败: %s\n", e.UTF8String); return 1; }
 

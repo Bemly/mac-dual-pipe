@@ -1,5 +1,5 @@
-#import "TLDual.h"
-#import "TLLink.h"
+#import "MDPDual.h"
+#import "MDPLink.h"
 
 static const NSUInteger kMinSplit = 256000;   // 小于此总量只走最快单链
 static const double kEwmaNew = 0.35;
@@ -8,7 +8,7 @@ static const int kDefaultBasePort = 17001;
 static BOOL TLDebugOn(void) {
     static BOOL v;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ v = getenv("TWINLINK_DEBUG") != NULL; });
+    dispatch_once(&once, ^{ v = getenv("DUALPIPE_DEBUG") != NULL; });
     return v;
 }
 #define TLDBG(fmt, ...) do { if (TLDebugOn()) NSLog(@"[TL] " fmt, ##__VA_ARGS__); } while (0)
@@ -22,18 +22,18 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     logf(s);
 }
 
-@implementation TLConfig
+@implementation MDPConfig
 @end
 
-@interface TLDual ()
-@property (nonatomic, strong) TLConfig *cfg;
-@property (nonatomic, strong) NSMutableArray<TLLink *> *links;
+@interface MDPDual ()
+@property (nonatomic, strong) MDPConfig *cfg;
+@property (nonatomic, strong) NSMutableArray<MDPLink *> *links;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *slots;
 @property (nonatomic, strong) NSLock *mx;
 @property (nonatomic, assign) BOOL shut;
 @end
 
-@implementation TLDual
+@implementation MDPDual
 
 - (instancetype)init {
     if ((self = [super init])) {
@@ -56,7 +56,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     dst(s);
 }
 
-+ (nullable instancetype)buildWithConfig:(TLConfig *)cfg
++ (nullable instancetype)buildWithConfig:(MDPConfig *)cfg
                                   error:(NSString **)err {
     if (!cfg.control || !cfg.ensureForward) {
         if (err) *err = @"配置缺 control/ensureForward";
@@ -73,7 +73,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     }
     int p1 = [ports[0] intValue], p2 = [ports[1] intValue];
 
-    TLDual *dual = [[TLDual alloc] init];
+    MDPDual *dual = [[MDPDual alloc] init];
     dual.cfg = cfg;
     if ([resp[@"notes"] count])
         [dual emit:nil fmt:@"[*] 端口占用记录: %@", [resp[@"notes"] componentsJoinedByString:@"; "]];
@@ -88,7 +88,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     NSData *ping = [@"twinlink-ping" dataUsingEncoding:NSUTF8StringEncoding];
 
     // 有线链路:握手(echo+代号,识破旧实例)
-    TLLink *wired = [[TLLink alloc] initWithName:@"wired" addr:@"127.0.0.1" port:p1 error:&e];
+    MDPLink *wired = [[MDPLink alloc] initWithName:@"wired" addr:@"127.0.0.1" port:p1 error:&e];
     if (wired) {
         NSString *gen = [wired echo:ping error:&e] ? [wired queryGenWithError:&e] : nil;
         BOOL genOk = !cfg.expectedGen.length || [gen isEqualToString:cfg.expectedGen];
@@ -107,7 +107,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
 
     // 无线链路:地址由调用方给(取不到则只用有线)
     if (cfg.lanIp.length) {
-        TLLink *wifi = [[TLLink alloc] initWithName:@"wifi" addr:cfg.lanIp port:p2 error:&e];
+        MDPLink *wifi = [[MDPLink alloc] initWithName:@"wifi" addr:cfg.lanIp port:p2 error:&e];
         if (wifi) {
             NSString *gen = [wifi echo:ping error:&e] ? [wifi queryGenWithError:&e] : nil;
             BOOL genOk = !cfg.expectedGen.length || [gen isEqualToString:cfg.expectedGen];
@@ -136,8 +136,8 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     // 64KB 回显定初始权重(只分方向,真实权重靠传输 EWMA 纠正)
     NSMutableData *blob = [NSMutableData dataWithLength:65536];
     arc4random_buf(blob.mutableBytes, blob.length);
-    NSMutableArray<TLLink *> *ups = [NSMutableArray array];
-    for (TLLink *l in dual.links) {
+    NSMutableArray<MDPLink *> *ups = [NSMutableArray array];
+    for (MDPLink *l in dual.links) {
         NSTimeInterval t0 = [NSDate date].timeIntervalSince1970;
         if ([l echo:blob error:&e]) {
             l.weight = blob.length * 2 / MAX([NSDate date].timeIntervalSince1970 - t0, 0.01);
@@ -154,7 +154,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
         return nil;
     }
     NSMutableArray<NSString *> *ws = [NSMutableArray array];
-    for (TLLink *l in dual.links)
+    for (MDPLink *l in dual.links)
         [ws addObject:[NSString stringWithFormat:@"%@=%.2fMB/s", l.name, l.weight / 1e6]];
     [dual emit:nil fmt:@"[*] 链路权重: %@", [ws componentsJoinedByString:@" "]];
     TLDBG(@"建链完成 %lu 条", (unsigned long)dual.links.count);
@@ -182,7 +182,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     return slot;
 }
 
-- (void)note:(TLLink *)l sent:(NSUInteger)s recv:(NSUInteger)r dt:(NSTimeInterval)dt {
+- (void)note:(MDPLink *)l sent:(NSUInteger)s recv:(NSUInteger)r dt:(NSTimeInterval)dt {
     l.weight = kEwmaNew * (s + r) / MAX(dt, 0.01) + (1 - kEwmaNew) * l.weight;
 }
 
@@ -203,13 +203,13 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     if (!valid.count) return out;
 
     NSTimeInterval now = [NSDate date].timeIntervalSince1970;
-    for (TLLink *l in self.links)
+    for (MDPLink *l in self.links)
         if (l.down && l.resumeAt <= now) {
             l.down = NO;
             [self emit:logf fmt:@"[*] %@ 熔断结束,恢复试用", l.name];
         }
-    NSMutableArray<TLLink *> *ups = [NSMutableArray array];
-    for (TLLink *l in self.links) if (!l.down) [ups addObject:l];
+    NSMutableArray<MDPLink *> *ups = [NSMutableArray array];
+    for (MDPLink *l in self.links) if (!l.down) [ups addObject:l];
     NSUInteger total = 0;
     for (NSData *d in valid) total += d.length;
 
@@ -226,17 +226,17 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     // 分包:单链或小总量只走最快链;否则按权重把序列切连续段(保序、按字节比例)
     NSMutableArray<NSArray *> *shares = [NSMutableArray array]; // @[link, @[valid 下标...]]
     if (ups.count == 1 || total < kMinSplit) {
-        TLLink *best = ups[0];
-        for (TLLink *l in ups) if (l.weight > best.weight) best = l;
+        MDPLink *best = ups[0];
+        for (MDPLink *l in ups) if (l.weight > best.weight) best = l;
         NSMutableArray *g = [NSMutableArray array];
         for (NSUInteger i = 0; i < valid.count; i++) [g addObject:@(i)];
         [shares addObject:@[best, g]];
     } else {
         double wsum = 0;
-        for (TLLink *l in ups) wsum += l.weight;
+        for (MDPLink *l in ups) wsum += l.weight;
         NSUInteger start = 0;
         for (NSUInteger li = 0; li < ups.count; li++) {
-            TLLink *l = ups[li];
+            MDPLink *l = ups[li];
             if (li == ups.count - 1) {
                 NSMutableArray *g = [NSMutableArray array];
                 for (NSUInteger i = start; i < valid.count; i++) [g addObject:@(i)];
@@ -261,7 +261,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     NSLock *rlock = [NSLock new];
     dispatch_group_t grp = dispatch_group_create();
     for (NSUInteger si = 0; si < shares.count; si++) {
-        TLLink *l = shares[si][0];
+        MDPLink *l = shares[si][0];
         NSArray *g = shares[si][1];
         dispatch_group_enter(grp);
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
@@ -291,7 +291,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
 
     // 回填 + 失败转交 + 兜底
     for (NSUInteger si = 0; si < shares.count; si++) {
-        TLLink *l = shares[si][0];
+        MDPLink *l = shares[si][0];
         NSArray *g = shares[si][1];
         NSDictionary *rec = results[si];
         if (rec[@"res"]) {
@@ -306,8 +306,8 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
         NSMutableArray *bl = [NSMutableArray arrayWithCapacity:g.count];
         for (NSNumber *k in g) [bl addObject:valid[k.unsignedIntegerValue]];
         BOOL handed = NO;
-        TLLink *alt = nil;
-        for (TLLink *x in self.links) {
+        MDPLink *alt = nil;
+        for (MDPLink *x in self.links) {
             if (x == l || x.down) continue;
             if (!alt || x.weight > alt.weight) alt = x;
         }
@@ -338,12 +338,12 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
         }
     }
     // 掉队熔断:不足最快链一成且还有别链可用,停 30s
-    NSMutableArray<TLLink *> *act = [NSMutableArray array];
-    for (TLLink *l in self.links) if (!l.down) [act addObject:l];
+    NSMutableArray<MDPLink *> *act = [NSMutableArray array];
+    for (MDPLink *l in self.links) if (!l.down) [act addObject:l];
     if (act.count > 1) {
         double best = 0;
-        for (TLLink *l in act) if (l.weight > best) best = l.weight;
-        for (TLLink *l in act) {
+        for (MDPLink *l in act) if (l.weight > best) best = l.weight;
+        for (MDPLink *l in act) {
             if (l.weight < 0.1 * best) {
                 l.down = YES;
                 l.resumeAt = [NSDate date].timeIntervalSince1970 + 30;
@@ -357,7 +357,7 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
 
 - (BOOL)echoAll:(NSData *)data logf:(void (^ _Nullable)(NSString *))logf {
     BOOL all = YES;
-    for (TLLink *l in self.links) {
+    for (MDPLink *l in self.links) {
         NSString *e = nil;
         BOOL ok = [l echo:data error:&e];
         [self emit:logf fmt:@"[*] %@ 回环 %luKB %@", l.name, (unsigned long)data.length / 1024,
@@ -374,10 +374,10 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     self.shut = YES;
     NSArray *links = [self.links copy];
     [self.links removeAllObjects];
-    TLConfig *cfg = self.cfg;
+    MDPConfig *cfg = self.cfg;
     self.cfg = nil;
     [self.mx unlock];
-    for (TLLink *l in links) [l close];
+    for (MDPLink *l in links) [l close];
     // 确定性清理:停对端服务(必须在控制通道失效前调)
     if (cfg.control) {
         NSDictionary *resp = cfg.control(@"stop", @{}, 10, NULL);

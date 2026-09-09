@@ -1,4 +1,4 @@
-# TwinLink
+# mac-dual-pipe
 
 macOS 双链二进制直传静态库（纯 Objective-C，零第三方依赖）。
 
@@ -15,7 +15,7 @@ macOS 双链二进制直传静态库（纯 Objective-C，零第三方依赖）�
   - `M`：条数 u32 + `[len u32 + bytes]*`（无总长前缀，流式直写，按条数读完即止）
   - `E`：len + bytes；`V`：代号原文
 
-## 控制契约（调用方经 `TLConfig.control` 实现，传输方式不限）
+## 控制契约（调用方经 `MDPConfig.control` 实现，传输方式不限）
 
 - `start {basePort}` → `{ok, ports:[p1,p2], notes:[]}`（端口占用可顺延）
 - `slot spec` → `{ok, slot:n}`（spec 内容调用方自定；线上只走小整数 handle）
@@ -34,20 +34,20 @@ macOS 双链二进制直传静态库（纯 Objective-C，零第三方依赖）�
 
 ```bash
 # 静态库（双架构）
-xcodebuild -project TwinLink.xcodeproj -target TwinLink -configuration Release SYMROOT=build build
-# → build/Release/libTwinLink.a，头文件在 src/
+xcodebuild -project mac-dual-pipe.xcodeproj -target mac-dual-pipe -configuration Release SYMROOT=build build
+# → build/Release/libmac-dual-pipe.a，头文件在 src/
 
 # 回环自测（无需设备：进程内桩服务实现分帧，M 的变换=逐字节反转）
-clang -arch arm64 -fobjc-arc -framework Foundation tools/tlsmoke.m \
-  build/Release/libTwinLink.a -I src -o /tmp/tlsmoke && /tmp/tlsmoke
+clang -arch arm64 -fobjc-arc -framework Foundation tools/mdpsmoke.m \
+  build/Release/libmac-dual-pipe.a -I src -o /tmp/mdpsmoke && /tmp/mdpsmoke
 ```
 
-排障：`TWINLINK_DEBUG=1` 打开库内打点（stderr）。
+排障：`DUALPIPE_DEBUG=1` 打开库内打点（stderr）。
 
 ## 用法
 
 ```objc
-TLConfig *cfg = [TLConfig new];
+MDPConfig *cfg = [MDPConfig new];
 cfg.basePort = 17001;
 cfg.lanIp = lanIpOrNil;
 cfg.expectedGen = @"A7";
@@ -57,7 +57,7 @@ cfg.control = ^NSDictionary *(NSString *op, NSDictionary *args, NSTimeInterval t
 cfg.ensureForward = ^BOOL (int port, NSString **e) {
     return MyEnsureForward(port, e);
 };
-TLDual *dual = [TLDual buildWithConfig:cfg error:&err];
+MDPDual *dual = [MDPDual buildWithConfig:cfg error:&err];
 uint32_t slot = [dual slotForKey:cacheKey spec:spec error:&err];
 NSArray *out = [dual processMany:slot iv:iv items:in
                         fallback:^NSArray *(NSArray *b, NSString **e) { return MyFallback(b, e); }

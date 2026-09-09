@@ -2,7 +2,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-// TwinLink —— 双链二进制直传传输层(macOS 侧,纯 Objective-C,零第三方依赖)。
+// mac-dual-pipe —— 双链二进制直传传输层(macOS 侧,纯 Objective-C,零第三方依赖)。
 //
 // 线上协议(全大端,大流量无文本编码开销):
 //   请求 MAGIC'AD01'+cmd;M=批量:slot u32+iv16B+nItems u32+lens[n] u32+totalCt u32+ct;
@@ -13,7 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 // 本库只实现传输与调度:批量条目的"变换"语义由对端定义,slot 的登记方式由调用方
 // 经 control 通道自定。本库不感知任何业务,只保证字节进出一致。
 
-@interface TLLink : NSObject
+@interface MDPLink : NSObject
 
 - (nullable instancetype)initWithName:(NSString *)name
                                 addr:(NSString *)addr

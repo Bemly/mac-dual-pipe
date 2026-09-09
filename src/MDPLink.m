@@ -1,4 +1,4 @@
-#import "TLLink.h"
+#import "MDPLink.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -21,7 +21,7 @@ static const NSTimeInterval kIoTimeout = 120;
 static BOOL TLDebugOn(void) {
     static BOOL v;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ v = getenv("TWINLINK_DEBUG") != NULL; });
+    dispatch_once(&once, ^{ v = getenv("DUALPIPE_DEBUG") != NULL; });
     return v;
 }
 #define TLDBG(fmt, ...) do { if (TLDebugOn()) NSLog(@"[TL] " fmt, ##__VA_ARGS__); } while (0)
@@ -133,13 +133,13 @@ static BOOL TlReadHead(int fd, uint32_t *magic, uint8_t *status, uint32_t *num, 
 
 #pragma mark - 单链
 
-@interface TLLink ()
+@interface MDPLink ()
 @property (nonatomic, assign) int fd;
 @property (nonatomic, strong) NSLock *mx;
 @property (nonatomic, assign) BOOL shut;
 @end
 
-@implementation TLLink
+@implementation MDPLink
 
 - (nullable instancetype)initWithName:(NSString *)name
                                 addr:(NSString *)addr
