@@ -1,0 +1,9 @@
+# 构建产物
+build/
+
+# macOS
+.DS_Store
+
+# Xcode 用户态文件
+xcuserdata/
+*.xcuserstate

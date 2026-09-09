@@ -1,0 +1,198 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* TLLink.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* TLLink.m */; };
+		A10000000000000000000002 /* TLDual.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* TLDual.m */; };
+		A10000000000000000000003 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* Foundation.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* TwinLink.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TwinLink.h; sourceTree = "<group>"; };
+		A20000000000000000000002 /* TLLink.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TLLink.h; sourceTree = "<group>"; };
+		A20000000000000000000003 /* TLLink.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TLLink.m; sourceTree = "<group>"; };
+		A20000000000000000000004 /* TLDual.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TLDual.h; sourceTree = "<group>"; };
+		A20000000000000000000005 /* TLDual.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TLDual.m; sourceTree = "<group>"; };
+		A20000000000000000000006 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		A20000000000000000000007 /* libTwinLink.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libTwinLink.a; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000003 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 /* Project object */ = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000002 /* src */,
+				A40000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000000000000000000002 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* TwinLink.h */,
+				A20000000000000000000002 /* TLLink.h */,
+				A20000000000000000000003 /* TLLink.m */,
+				A20000000000000000000004 /* TLDual.h */,
+				A20000000000000000000005 /* TLDual.m */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000007 /* libTwinLink.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* TwinLink */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A60000000000000000000003 /* Build configuration list for PBXNativeTarget "TwinLink" */;
+			buildPhases = (
+				A30000000000000000000002 /* Sources */,
+				A30000000000000000000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TwinLink;
+			productName = TwinLink;
+			productReference = A20000000000000000000007 /* libTwinLink.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A50000000000000000000002 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 2600;
+			};
+			buildConfigurationList = A60000000000000000000001 /* Build configuration list for PBXProject "TwinLink" */;
+			compatibilityVersion = "Xcode 26.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = A40000000000000000000001 /* Project object */;
+			productRefGroup = A40000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* TwinLink */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A30000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* TLLink.m in Sources */,
+				A10000000000000000000002 /* TLDual.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A60000000000000000000004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		A60000000000000000000005 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		A60000000000000000000006 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				EXECUTABLE_PREFIX = lib;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = TwinLink;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		A60000000000000000000007 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				EXECUTABLE_PREFIX = lib;
+				PRODUCT_NAME = TwinLink;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A60000000000000000000001 /* Build configuration list for PBXProject "TwinLink" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A60000000000000000000004 /* Debug */,
+				A60000000000000000000005 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A60000000000000000000003 /* Build configuration list for PBXNativeTarget "TwinLink" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A60000000000000000000006 /* Debug */,
+				A60000000000000000000007 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = A50000000000000000000002 /* Project object */;
+}
