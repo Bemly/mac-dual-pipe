@@ -1,50 +1,57 @@
 # mac-dual-pipe
 
-macOS 双链二进制直传静态库（纯 Objective-C，零第三方依赖）。
+[中文文档](README.zh.md)
 
-两条链（有线转发 + 无线直连）并发，按实时测速动态分包；单链故障自动转交，
-全挂回退备用通道；掉队链路熔断 30s。大流量走纯二进制帧，无文本编码开销。
+A dual-link binary transport static library for macOS (pure Objective-C, zero third-party dependencies).
 
-## 线协议（全大端，两端逐字节对齐）
+Two links (wired forwarding + wireless direct) run concurrently with dynamic
+load splitting driven by live throughput measurement; a failed link hands off
+to the healthy one automatically, total failure falls back to a spare channel,
+and a lagging link is fused for 30s. Bulk traffic uses pure binary frames —
+no text-encoding overhead.
 
-- 请求 `MAGIC'AD01' + cmd`
-  - `M` 批量：slot u32 + iv16B + 条数 u32 + lens[n] u32 + 总长 u32 + 输入
-  - `E` 回显：len u32 + bytes
-  - `Q` 断开；`V` 代号问询
-- 应答 `MAGIC'AD02' + status u8（0=ok）`
-  - `M`：条数 u32 + `[len u32 + bytes]*`（无总长前缀，流式直写，按条数读完即止）
-  - `E`：len + bytes；`V`：代号原文
+## Wire protocol (big-endian throughout, byte-aligned on both ends)
 
-## 控制契约（调用方经 `MDPConfig.control` 实现，传输方式不限）
+- Request `MAGIC'AD01' + cmd`
+  - `M` batch: slot u32 + iv16B + item count u32 + lens[n] u32 + total length u32 + input
+  - `E` echo: len u32 + bytes
+  - `Q` disconnect; `V` generation query
+- Response `MAGIC'AD02' + status u8 (0=ok)`
+  - `M`: count u32 + `[len u32 + bytes]*` (no total-length prefix, streamed; read until count reached)
+  - `E`: len + bytes; `V`: generation string verbatim
 
-- `start {basePort}` → `{ok, ports:[p1,p2], notes:[]}`（端口占用可顺延）
-- `slot spec` → `{ok, slot:n}`（spec 内容调用方自定；线上只走小整数 handle）
+## Control contract (implemented by the caller via `MDPConfig.control`, transport-agnostic)
+
+- `start {basePort}` → `{ok, ports:[p1,p2], notes:[]}` (ports may shift on conflict)
+- `slot spec` → `{ok, slot:n}` (spec contents are caller-defined; only a small integer handle goes on the wire)
 - `stop {}` → `{ok, closed:n}`
 
-另需调用方实现 `ensureForward(port)`（保证 `127.0.0.1:port` 可达对端）
-并提供无线地址（`lanIp`，无则只用有线）。
+The caller must also implement `ensureForward(port)` (guaranteeing
+`127.0.0.1:port` reaches the peer) and provide the wireless address
+(`lanIp`; wired-only when absent).
 
-## 生命周期纪律
+## Lifecycle discipline
 
-对端服务线程必须**确定性关闭**：`close`（关各链 + control stop）必须在控制通道
-失效前调用；异常退出导致残留时，靠端口顺延 + 代号校验（`expectedGen` 对不上即
-视为旧实例，跳过）兜底。
+Peer-side service threads must be shut down **deterministically**: call `close`
+(close all links + control stop) before the control channel goes away. If an
+abnormal exit leaves residue behind, port shifting + generation check
+(`expectedGen` mismatch means a stale instance — skip it) cover you.
 
-## 构建与自测
+## Build & self-test
 
 ```bash
-# 静态库（双架构）
+# Static library (dual-arch)
 xcodebuild -project mac-dual-pipe.xcodeproj -target mac-dual-pipe -configuration Release SYMROOT=build build
-# → build/Release/libmac-dual-pipe.a，头文件在 src/
+# → build/Release/libmac-dual-pipe.a, headers in src/
 
-# 回环自测（无需设备：进程内桩服务实现分帧，M 的变换=逐字节反转）
+# Loopback self-test (no device needed: in-process stub implements the framing, M transform = byte reversal)
 clang -arch arm64 -fobjc-arc -framework Foundation tools/mdpsmoke.m \
   build/Release/libmac-dual-pipe.a -I src -o /tmp/mdpsmoke && /tmp/mdpsmoke
 ```
 
-排障：`DUALPIPE_DEBUG=1` 打开库内打点（stderr）。
+Troubleshooting: set `DUALPIPE_DEBUG=1` for in-library tracing (stderr).
 
-## 用法
+## Usage
 
 ```objc
 MDPConfig *cfg = [MDPConfig new];
@@ -62,8 +69,9 @@ uint32_t slot = [dual slotForKey:cacheKey spec:spec error:&err];
 NSArray *out = [dual processMany:slot iv:iv items:in
                         fallback:^NSArray *(NSArray *b, NSString **e) { return MyFallback(b, e); }
                             logf:^(NSString *l) { NSLog(@"%@", l); } error:&err];
-[dual close];   // 用完即关，幂等
+[dual close];   // close when done, idempotent
 ```
 
-参考性能（本机回环，桩服务做逐字节反转）：建链双链 13MB/s 级；
-生产吞吐取决于对端变换速度与真实网络。
+Reference performance (localhost loopback, stub doing byte reversal): dual-link
+handshake at ~13MB/s; production throughput depends on peer transform speed and
+the real network.
