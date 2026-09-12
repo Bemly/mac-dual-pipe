@@ -37,7 +37,23 @@ static uint32_t GetU32(const uint8_t *b) {
 
 // ---- socket 原语 ----
 
+static int TlConnectOnce(const char *ip, int port, NSString **err);
+
 static int TlConnect(const char *ip, int port, NSString **err) {
+    // 瞬断 WiFi 下首次 connect 常报 No route to host,重试 3 次(每次间隔 1s);
+    // 真挂(地址非法除外)最多多花约 2s + 各次自带超时。
+    NSString *lastErr = nil;
+    for (int attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) [NSThread sleepForTimeInterval:1.0];
+        int fd = TlConnectOnce(ip, port, &lastErr);
+        if (fd >= 0) return fd;
+        if (lastErr && [lastErr rangeOfString:@"地址非法"].location != NSNotFound) break;
+    }
+    if (err) *err = lastErr;
+    return -1;
+}
+
+static int TlConnectOnce(const char *ip, int port, NSString **err) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) { if (err) *err = @"建 socket 失败"; return -1; }
     int one = 1;
