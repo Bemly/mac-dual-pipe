@@ -368,6 +368,94 @@ static void LogTo(void (^logf)(NSString *), NSString *fmt, ...) {
     return all;
 }
 
+- (BOOL)fetchFile:(NSString *)phonePath
+           toPath:(NSString *)localPath
+        totalSize:(uint64_t)totalSize
+             logf:(void (^ _Nullable)(NSString *))logf
+            error:(NSString **)err {
+    if (!totalSize) { if (err) *err = @"成品大小未知"; return NO; }
+    if (![[NSFileManager defaultManager] createFileAtPath:localPath contents:nil attributes:nil]) {
+        if (err) *err = @"本地成品创建失败";
+        return NO;
+    }
+    // 按权重切连续段(单链全量;段下限 1MB,余量归末段)
+    NSMutableArray<NSArray *> *ranges = [NSMutableArray array]; // @[link, off, len]
+    if (self.links.count == 1) {
+        [ranges addObject:@[self.links[0], @0, @(totalSize)]];
+    } else {
+        double wsum = 0;
+        for (MDPLink *l in self.links) wsum += l.weight;
+        uint64_t off = 0;
+        for (NSUInteger li = 0; li < self.links.count; li++) {
+            MDPLink *l = self.links[li];
+            if (li == self.links.count - 1) {
+                if (totalSize > off) [ranges addObject:@[l, @(off), @(totalSize - off)]];
+            } else {
+                uint64_t need = (uint64_t)((double)totalSize * l.weight / wsum);
+                if (need < 1000000) need = 1000000;
+                if (off + need > totalSize) need = totalSize - off;
+                if (need > 0) [ranges addObject:@[l, @(off), @(need)]];
+                off += need;
+            }
+        }
+    }
+    TLDBG(@"取文件 %llu 字节切 %lu 段", totalSize, (unsigned long)ranges.count);
+    // 并发取段(各段 pwrite 到自己的偏移,互不干扰)
+    NSMutableArray *recs = [NSMutableArray array];
+    for (NSUInteger i = 0; i < ranges.count; i++) [recs addObject:[NSNull null]];
+    NSLock *rlock = [NSLock new];
+    dispatch_group_t grp = dispatch_group_create();
+    for (NSUInteger i = 0; i < ranges.count; i++) {
+        MDPLink *l = ranges[i][0];
+        uint64_t off = [ranges[i][1] unsignedLongLongValue];
+        uint64_t len = [ranges[i][2] unsignedLongLongValue];
+        dispatch_group_enter(grp);
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            NSTimeInterval t0 = [NSDate date].timeIntervalSince1970;
+            NSString *e = nil;
+            BOOL ok = [l fetchFile:phonePath offset:off length:len toPath:localPath error:&e];
+            [self note:l sent:len recv:(ok ? len : 0) dt:[NSDate date].timeIntervalSince1970 - t0];
+            [rlock lock];
+            recs[i] = ok ? @{ } : @{ @"err": e ?: @"?" };
+            [rlock unlock];
+            dispatch_group_leave(grp);
+        });
+    }
+    dispatch_group_wait(grp, DISPATCH_TIME_FOREVER);
+    // 失败段转交健康链重试一次(pwrite 按偏移,重复写同段无害)
+    BOOL all = YES;
+    for (NSUInteger i = 0; i < ranges.count; i++) {
+        NSDictionary *rec = recs[i];
+        if ([rec isKindOfClass:[NSDictionary class]] && rec[@"err"] == nil) continue;
+        MDPLink *l = ranges[i][0];
+        uint64_t off = [ranges[i][1] unsignedLongLongValue];
+        uint64_t len = [ranges[i][2] unsignedLongLongValue];
+        [self emit:logf fmt:@"[!] %@ 取段失败(%@),转交健康链重试", l.name, rec[@"err"] ?: @"?"];
+        l.down = YES;
+        MDPLink *alt = nil;
+        for (MDPLink *x in self.links) {
+            if (x == l || x.down) continue;
+            if (!alt || x.weight > alt.weight) alt = x;
+        }
+        if (!alt) {
+            if (err) *err = [NSString stringWithFormat:@"取段失败且无健康链: %@", rec[@"err"] ?: @"?"];
+            all = NO;
+            continue;
+        }
+        NSString *e2 = nil;
+        NSTimeInterval t0 = [NSDate date].timeIntervalSince1970;
+        BOOL ok = [alt fetchFile:phonePath offset:off length:len toPath:localPath error:&e2];
+        [self note:alt sent:len recv:(ok ? len : 0) dt:[NSDate date].timeIntervalSince1970 - t0];
+        if (!ok) {
+            if (err) *err = e2 ?: @"转交重试也失败";
+            all = NO;
+        }
+    }
+    if (all)
+        [self emit:logf fmt:@"[*] 双链回传完成 %llu 字节(%lu 段)", totalSize, (unsigned long)ranges.count];
+    return all;
+}
+
 - (void)close {
     [self.mx lock];
     if (self.shut) { [self.mx unlock]; return; }

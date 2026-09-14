@@ -48,6 +48,14 @@ NS_ASSUME_NONNULL_BEGIN
 // 逐链回环(自检用):每条链全量比对,逐条记行;全过返回 YES
 - (BOOL)echoAll:(NSData *)data logf:(void (^ _Nullable)(NSString *))logf;
 
+// 双链并发取文件:按当前权重把 [0,totalSize) 切连续段,各链流式回传、按偏移写入
+// localPath(对端零编码原样字节);某段失败转交健康链重试一次。全部成功返回 YES。
+- (BOOL)fetchFile:(NSString *)phonePath
+           toPath:(NSString *)localPath
+        totalSize:(uint64_t)totalSize
+             logf:(void (^ _Nullable)(NSString *))logf
+            error:(NSString * _Nullable * _Nullable)err;
+
 // 关各链 + control stop(幂等;必须在控制通道失效前调)
 - (void)close;
 

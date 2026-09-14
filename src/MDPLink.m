@@ -14,6 +14,7 @@ static const uint8_t kCmdM = 0x4D;             // 批量变换
 static const uint8_t kCmdE = 0x45;             // 回显
 static const uint8_t kCmdQ = 0x51;             // 断开
 static const uint8_t kCmdV = 0x56;             // 代号问询
+static const uint8_t kCmdF = 0x46;             // 取文件:path+offset+length → 原样 length 字节
 
 static const NSTimeInterval kConnTimeout = 5;
 static const NSTimeInterval kIoTimeout = 120;
@@ -31,6 +32,12 @@ static void PutU32(NSMutableData *d, uint32_t v) {
     [d appendBytes:b length:4];
 }
 
+static void PutU64(NSMutableData *d, uint64_t v) {
+    uint8_t b[8];
+    for (int i = 0; i < 8; i++) b[i] = (uint8_t)(v >> (56 - i * 8));
+    [d appendBytes:b length:8];
+}
+
 static uint32_t GetU32(const uint8_t *b) {
     return ((uint32_t)b[0] << 24) | ((uint32_t)b[1] << 16) | ((uint32_t)b[2] << 8) | b[3];
 }
@@ -46,7 +53,9 @@ static int TlConnect(const char *ip, int port, NSString **err) {
     for (int attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) [NSThread sleepForTimeInterval:1.0];
         int fd = TlConnectOnce(ip, port, &lastErr);
-        if (fd >= 0) return fd;
+        if (fd > 2) return fd;
+        // fd==0..2:标准流被占用(见 TlConnectOnce 注释),绝不 close,直接失败
+        if (fd >= 0) { lastErr = @"socket 落到标准流(启动 fd 保护缺失)"; break; }
         if (lastErr && [lastErr rangeOfString:@"地址非法"].location != NSNotFound) break;
     }
     if (err) *err = lastErr;
@@ -56,6 +65,13 @@ static int TlConnect(const char *ip, int port, NSString **err) {
 static int TlConnectOnce(const char *ip, int port, NSString **err) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) { if (err) *err = @"建 socket 失败"; return -1; }
+    if (fd <= 2) {
+        // 0/1/2 是标准流:正常进程 socket 不可能落在这里;落在这里说明启动时
+        // stdin 被关过(旧版 dealloc-close(0) 级联)。绝不能 close(经 launchd 启动
+        // 时 fd0 被 guard,close 即 EXC_GUARD)。直接失败不接管,让调用方走兜底。
+        if (err) *err = @"socket 落到标准流(启动 fd 保护缺失)";
+        return fd; // 由调用方判 <=2 拒绝且不 close,泄一个 fd 保进程不死
+    }
     int one = 1;
     // 发包到已断连接默认发 SIGPIPE 直接打死进程;改走 EPIPE 错误返回(故障转交就靠它)
     setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
@@ -66,14 +82,14 @@ static int TlConnectOnce(const char *ip, int port, NSString **err) {
     a.sin_family = AF_INET;
     a.sin_port = htons((uint16_t)port);
     if (inet_pton(AF_INET, ip, &a.sin_addr) != 1) {
-        close(fd);
+        if (fd > 2) close(fd);
         if (err) *err = @"地址非法";
         return -1;
     }
     int r = connect(fd, (struct sockaddr *)&a, sizeof(a));
     if (r < 0 && errno != EINPROGRESS) {
         NSString *e = [NSString stringWithFormat:@"connect: %s", strerror(errno)];
-        close(fd);
+        if (fd > 2) close(fd);
         if (err) *err = e;
         return -1;
     }
@@ -84,7 +100,7 @@ static int TlConnectOnce(const char *ip, int port, NSString **err) {
         struct timeval tv = { (int)kConnTimeout, 0 };
         r = select(fd + 1, NULL, &w, NULL, &tv);
         if (r <= 0) {
-            close(fd);
+            if (fd > 2) close(fd);
             if (err) *err = @"connect 超时";
             return -1;
         }
@@ -93,7 +109,7 @@ static int TlConnectOnce(const char *ip, int port, NSString **err) {
         getsockopt(fd, SOL_SOCKET, SO_ERROR, &soErr, &n);
         if (soErr) {
             NSString *e = [NSString stringWithFormat:@"connect: %s", strerror(soErr)];
-            close(fd);
+            if (fd > 2) close(fd);
             if (err) *err = e;
             return -1;
         }
@@ -158,17 +174,21 @@ static BOOL TlReadHead(int fd, uint32_t *magic, uint8_t *status, uint32_t *num, 
 @implementation MDPLink
 
 - (nullable instancetype)initWithName:(NSString *)name
-                                addr:(NSString *)addr
-                                port:(int)port
-                               error:(NSString **)err {
+                                 addr:(NSString *)addr
+                                 port:(int)port
+                                error:(NSString **)err {
     if ((self = [super init])) {
-        NSString *e = nil;
-        int fd = TlConnect(addr.UTF8String, port, &e);
-        if (fd < 0) { if (err) *err = e; return nil; }
-        _name = [name copy];
-        _fd = fd;
+        // 先落默认值:连接失败 return nil 会走 dealloc→close,此时 _fd 必须是 -1
+        // 否则零初始化的 0 会被当有效 fd close(0),经 open/launchd 启动即 EXC_GUARD
+        // (2026-09-14 实录:wifi 超时→init nil→dealloc close(0)→GUI 崩)。
+        _fd = -1;
         _mx = [NSLock new];
         _weight = 1.0;
+        NSString *e = nil;
+        int fd = TlConnect(addr.UTF8String, port, &e);
+        if (fd <= 2) { if (err) *err = e; return nil; }
+        _name = [name copy];
+        _fd = fd;
         TLDBG(@"链路 %@ %@:%d 已连", name, addr, port);
     }
     return self;
@@ -274,18 +294,84 @@ static BOOL TlReadHead(int fd, uint32_t *magic, uint8_t *status, uint32_t *num, 
     return out;
 }
 
-- (void)close {
+// F=取文件:请求 path+offset u64+length u64,应答头(magic+status)后对端原样流 length 字节
+// (零编码);本侧边收边 pwrite 到 localPath 的 offset 起——双链各取一段,按偏移拼成整文件。
+- (BOOL)fetchFile:(NSString *)phonePath
+           offset:(uint64_t)offset
+           length:(uint64_t)length
+           toPath:(NSString *)localPath
+            error:(NSString **)err {
     [self.mx lock];
-    if (!self.shut && self.fd >= 0) {
+    @try {
+        if (self.shut) { if (err) *err = @"已关闭"; return NO; }
+        NSData *pb = [phonePath dataUsingEncoding:NSUTF8StringEncoding];
+        NSMutableData *body = [NSMutableData data];
+        PutU32(body, kReqMagic);
+        [body appendBytes:&kCmdF length:1];
+        PutU32(body, (uint32_t)pb.length);
+        [body appendData:pb];
+        PutU64(body, offset);
+        PutU64(body, length);
+        NSString *e = nil;
+        if (!TlSendAll(self.fd, body.bytes, body.length, &e)) { if (err) *err = e; return NO; }
+        uint32_t magic = 0, ln = 0;
+        uint8_t st = 0;
+        if (!TlReadHead(self.fd, &magic, &st, &ln, &e)) { if (err) *err = e; return NO; }
+        if (magic != kRespMagic) { if (err) *err = @"协议魔数错位"; return NO; }
+        if (st != 0) { if (err) *err = @"取文件被拒(对端打开/寻址失败)"; return NO; }
+        int lfd = open(localPath.UTF8String, O_WRONLY);
+        if (lfd < 0) { if (err) *err = @"本地成品文件打不开"; return NO; }
+        if (lfd <= 2) { if (err) *err = @"本地文件落到标准流(启动 fd 保护缺失)"; return NO; }
+        static const size_t kBuf = 262144;
+        uint8_t *buf = (uint8_t *)malloc(kBuf);
+        if (!buf) { if (lfd > 2) close(lfd); if (err) *err = @"内存不足"; return NO; }
+        uint64_t got = 0;
+        BOOL ok = YES;
+        while (ok && got < length) {
+            size_t want = (size_t)MIN((uint64_t)kBuf, length - got);
+            ssize_t r = recv(self.fd, buf, want, 0);
+            if (r < 0 && errno == EINTR) continue;
+            if (r <= 0) {
+                if (err) *err = r == 0 ? @"对端提前断流" : [NSString stringWithFormat:@"recv: %s", strerror(errno)];
+                ok = NO;
+                break;
+            }
+            size_t done = 0;
+            while (ok && done < (size_t)r) {
+                ssize_t w = pwrite(lfd, buf + done, (size_t)r - done, (off_t)(offset + got + done));
+                if (w < 0 && errno == EINTR) continue;
+                if (w <= 0) { if (err) *err = @"pwrite 失败"; ok = NO; break; }
+                done += (size_t)w;
+            }
+            got += (uint64_t)r;
+        }
+        free(buf);
+        if (lfd > 2) close(lfd);
+        if (!ok) return NO;
+        if (got != length) { if (err) *err = @"收流长度不齐"; return NO; }
+    } @finally {
+        [self.mx unlock];
+    }
+    return YES;
+}
+
+- (void)close {
+    NSLock *mx = _mx;
+    if (mx) [mx lock];
+    // _fd<=2 永不 close:0/1/2 是标准流(失败路径的 -1 与旧对象的 0 都落在这里);
+    // close(0) 在经 open/launchd 启动时即 EXC_GUARD,宁可泄也不碰。
+    if (!self.shut && _fd > 2) {
         uint8_t q[5];
         q[0] = (uint8_t)(kReqMagic >> 24); q[1] = (uint8_t)(kReqMagic >> 16);
         q[2] = (uint8_t)(kReqMagic >> 8); q[3] = (uint8_t)kReqMagic; q[4] = kCmdQ;
-        TlSendAll(self.fd, q, 5, NULL);   // 尽力而为,失败直接关
-        close(self.fd);
-        self.fd = -1;
+        TlSendAll(_fd, q, 5, NULL);   // 尽力而为,失败直接关
+        close(_fd);
+        _fd = -1;
+    } else if (_fd >= 0 && _fd <= 2) {
+        _fd = -1;
     }
     self.shut = YES;
-    [self.mx unlock];
+    if (mx) [mx unlock];
 }
 
 - (void)dealloc { [self close]; }

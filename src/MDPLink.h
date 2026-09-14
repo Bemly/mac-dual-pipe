@@ -6,7 +6,8 @@ NS_ASSUME_NONNULL_BEGIN
 //
 // 线上协议(全大端,大流量无文本编码开销):
 //   请求 MAGIC'AD01'+cmd;M=批量:slot u32+iv16B+nItems u32+lens[n] u32+totalCt u32+ct;
-//   E=回显:len u32+bytes;Q=断开。
+//   E=回显:len u32+bytes;Q=断开;F=取文件:pathLen u32+path+offset u64+length u64
+//   (应答 MAGIC'AD02'+status u8 后对端原样流 length 字节)。
 //   应答 MAGIC'AD02'+status u8(0=ok)+M:nOut u32+[len u32+bytes]* / E:len+bytes。
 // 另有两个 socket 内建查询:V=代号问询(识破连到旧实例,载荷为代号原文)。
 //
@@ -29,6 +30,14 @@ NS_ASSUME_NONNULL_BEGIN
                                      iv:(NSData *)iv
                                   items:(NSArray<NSData *> *)cts
                                   error:(NSString * _Nullable * _Nullable)err;
+
+// 取文件:对端流 length 字节(零编码),本侧 pwrite 到 localPath 的 offset 起;
+// 双链各取一段按偏移拼整文件(范围由调用方按权重切)
+- (BOOL)fetchFile:(NSString *)phonePath
+           offset:(uint64_t)offset
+           length:(uint64_t)length
+           toPath:(NSString *)localPath
+            error:(NSString * _Nullable * _Nullable)err;
 
 - (void)close;   // 发 Q 后关连接,幂等
 
